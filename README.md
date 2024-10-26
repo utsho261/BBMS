@@ -107,8 +107,6 @@ The Blood Bank Management System (BBMS) is a Python-based desktop application de
 ## Project Structure
 
 - `main.py`: Entry point of the application.
-- `database.py`: Contains functions for interacting with the MySQL database.
-- `gui.py`: Contains the Tkinter-based graphical user interface for admin and user functionalities.
 
 ## Conclusion
 
