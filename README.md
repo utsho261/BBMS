@@ -98,7 +98,15 @@ The Blood Bank Management System (BBMS) is a Python-based desktop application de
    pip install mysql-connector-python
    ```
 3. **Configure MySQL**: Ensure your MySQL server is running, and the `bloodbank` database is set up with the provided tables.
-4. **Run the Application**: Execute the `main.py` file to launch the Blood Bank Management System interface.
+4. **Install tkcalendar**: Open your terminal and run the following command to install tkcalendar:
+   ```bash
+   pip install tkcalendar
+   ```
+5. **Install Pillow (for PIL, Image, and ImageTk)**: To handle image manipulation, install the Pillow library:
+   ```bash
+   pip install Pillow
+   ```   
+6. **Run the Application**: Execute the `main.py` file to launch the Blood Bank Management System interface.
 
    ```bash
    python main.py
