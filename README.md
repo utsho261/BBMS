@@ -32,12 +32,17 @@ The Blood Bank Management System (BBMS) is a Python-based desktop application de
 2. **Create Tables**: Execute the following SQL scripts to create the necessary tables:
 
    ```sql
+   CREATE TABLE Admin (
+       Id INT AUTO_INCREMENT PRIMARY KEY,
+       Username VARCHAR(100) NOT NULL UNIQUE,
+       Password VARCHAR(255) NOT NULL
+   );
+   
    -- Create User table
    CREATE TABLE User (
        Id INT AUTO_INCREMENT PRIMARY KEY,
        Username VARCHAR(100) NOT NULL UNIQUE,
-       Password VARCHAR(255) NOT NULL,
-       Role ENUM('User', 'Admin') NOT NULL
+       Password VARCHAR(255) NOT NULL
    );
 
    -- Create Doner table
