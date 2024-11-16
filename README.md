@@ -65,7 +65,7 @@ The Blood Bank Management System (BBMS) is a Python-based desktop application de
    CREATE TABLE Donation (
        Serial INT AUTO_INCREMENT PRIMARY KEY,
        DonerID INT NOT NULL,
-       Date DATE NOT NULL,
+       Date TEXT NOT NULL,
        Unit INT NOT NULL,
        FOREIGN KEY (DonerID) REFERENCES Doner(Id) ON DELETE CASCADE
    );
@@ -79,7 +79,7 @@ The Blood Bank Management System (BBMS) is a Python-based desktop application de
        Reason VARCHAR(255),
        City VARCHAR(100) NOT NULL,
        Number VARCHAR(15) NOT NULL,
-       Date DATE NOT NULL,
+       Date TEXT NOT NULL,
        Status ENUM('Processing', 'Accepted', 'Rejected') NOT NULL DEFAULT 'Processing'
    );
 
