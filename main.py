@@ -109,7 +109,7 @@ class Doner:
         for row in rows:
             self.doner_table.insert("", "end", values=row)
 
-        window.mainloop()
+
 class Donation:
     def add_donation(self, notebook):
         donation_frame = tk.Frame(notebook, width=800, height=600)
@@ -131,8 +131,8 @@ class Donation:
 
         tk.Button(donation_frame, text="Add Donation", command=lambda: self.add_donation_to_db(
             doner_id_entry.get(), date_entry.get(), unit_entry.get())
-                  ).grid(row=3, column=0, columnspan=2, pady=10)
-        tk.Button(donation_frame, text="Back", width=10, command=lambda: go_back(notebook)).grid(row=4, column=0, columnspan=2, pady=10)
+                  ).grid(row=3, column=1,  pady=10)
+        tk.Button(donation_frame, text="Back", width=10, command=lambda: go_back(notebook)).grid(row=4, column=0, pady=10)
 
     def add_donation_to_db(self, doner_id, date, unit):
         db = Database.connect_to_database()
@@ -175,10 +175,6 @@ class Donation:
 
 
     def show_donations(self):
-        """
-        This method fetches all donations and displays them in a Treeview.
-        It includes donor details such as Name, Blood Group, and Date of Donation.
-        """
         db = Database.connect_to_database()
         cursor = db.cursor()
 
@@ -223,8 +219,24 @@ class BloodStock:
         cursor = db.cursor()
         cursor.execute("SELECT * FROM BloodStock")
         rows = cursor.fetchall()
-        db.close()
-        display_table(rows, ["Blood Group", "Unit"], "Blood Stock")
+
+        stock_window = tk.Toplevel()
+        stock_window.title("Blood Stock Details")
+
+        frame = tk.Frame(stock_window)
+        frame.pack(padx=10, pady=10)
+
+        columns = ("BloodGroup", "Unit")
+        tree = ttk.Treeview(frame, columns=columns, show="headings")
+        tree.heading("BloodGroup", text="Blood Group")
+        tree.heading("Unit", text="Unit")
+        tree.column("BloodGroup", width=150, anchor="center")
+        tree.column("Unit", width=100, anchor="center")
+        tree.pack()
+
+        for row in rows:
+            tree.insert("", tk.END, values=row)
+
 
     def show_requests(self):
         pass
@@ -428,7 +440,6 @@ def toggle_donation_options(frame):
 
 def user_panel(root, notebook):
     user_frame = tk.Frame(notebook, width=800, height=600)
-    user_frame.pack_propagate(False)
     set_background(user_frame, "BG.jpg")
 
     notebook.add(user_frame, text="User Panel")
@@ -480,19 +491,6 @@ def get_districts():
         "Shariatpur", "Sherpur", "Sirajganj", "Sunamganj", "Sylhet",
         "Tangail", "Thakurgaon"
     ]
-def display_table(rows, columns, title):
-    table_window = tk.Toplevel()
-    table_window.title(title)
-
-    tree = ttk.Treeview(table_window, columns=columns, show='headings')
-    for col in columns:
-        tree.heading(col, text=col)
-        tree.column(col, anchor='w')
-
-    for row in rows:
-        tree.insert("", "end", values=row)
-
-    tree.pack(expand=True, fill='both')
 
 
 if __name__ == "__main__":
