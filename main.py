@@ -3,6 +3,7 @@ from tkinter import messagebox, ttk
 from tkcalendar import DateEntry
 import mysql.connector
 from PIL import Image, ImageTk
+import re
 
 class Database:
     @classmethod
@@ -11,34 +12,55 @@ class Database:
 
 class Doner:
     def add_doner(self, notebook):
-        doner_frame = tk.Frame(notebook, width=800, height=600)
-        set_background(doner_frame, "BG.jpg")
-        notebook.add(doner_frame, text="Add Doner")
+        doner_window = tk.Toplevel()
+        doner_window.title("Add Donor")
+        doner_window.geometry("400x400")
 
-        tk.Label(doner_frame, text="Name", bg="white").grid(row=0, column=0, padx=10, pady=10)
-        name_entry = tk.Entry(doner_frame)
-        name_entry.grid(row=0, column=1, padx=10, pady=10)
+        # Header
+        header = tk.Label(doner_window, text="Add Donor", bg="#2c3e50", fg="white", font=("Arial", 18, "bold"), padx=20, pady=10)
+        header.grid(row=0, column=0, columnspan=2, sticky="we")
 
-        tk.Label(doner_frame, text="Age", bg="white").grid(row=1, column=0, padx=10, pady=10)
-        age_entry = tk.Entry(doner_frame)
-        age_entry.grid(row=1, column=1, padx=10, pady=10)
+        # Donor Form
+        form_frame = tk.Frame(doner_window, bg="#f4f4f9")
+        form_frame.grid(row=1, column=0, columnspan=2, padx=20, pady=20)
 
-        tk.Label(doner_frame, text="Blood Group", bg="white").grid(row=2, column=0, padx=10, pady=10)
-        blood_group_combobox = ttk.Combobox(doner_frame, values=["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"], state="readonly")
-        blood_group_combobox.grid(row=2, column=1, padx=10, pady=10)
+        tk.Label(form_frame, text="Name", bg="#f4f4f9", font=("Arial", 12)).grid(row=0, column=0, padx=10, pady=10, sticky="w")
+        name_entry = tk.Entry(form_frame, font=("Arial", 12))
+        name_entry.grid(row=0, column=1, padx=10, pady=10, sticky="w")
 
-        tk.Label(doner_frame, text="City", bg="white").grid(row=3, column=0, padx=10, pady=10)
-        city_combobox = ttk.Combobox(doner_frame, values=get_districts(), state="readonly")
-        city_combobox.grid(row=3, column=1, padx=10, pady=10)
+        tk.Label(form_frame, text="Age", bg="#f4f4f9", font=("Arial", 12)).grid(row=1, column=0, padx=10, pady=10, sticky="w")
+        age_entry = tk.Entry(form_frame, font=("Arial", 12))
+        age_entry.grid(row=1, column=1, padx=10, pady=10, sticky="w")
 
-        tk.Label(doner_frame, text="Number", bg="white").grid(row=4, column=0, padx=10, pady=10)
-        number_entry = tk.Entry(doner_frame)
-        number_entry.grid(row=4, column=1, padx=10, pady=10)
+        tk.Label(form_frame, text="Blood Group", bg="#f4f4f9", font=("Arial", 12)).grid(row=2, column=0, padx=10, pady=10, sticky="w")
+        blood_group_combobox = ttk.Combobox(form_frame, values=["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"], state="readonly", font=("Arial", 12))
+        blood_group_combobox.grid(row=2, column=1, padx=10, pady=10, sticky="w")
 
-        tk.Button(doner_frame, text="Add Doner", command=lambda: self.validate_doner_data(name_entry.get(), age_entry.get(), blood_group_combobox.get(), city_combobox.get(), number_entry.get())).grid(row=5, column=0, columnspan=2, pady=10)
-        tk.Button(doner_frame, text="Back", width=10, command=lambda: go_back(notebook)).grid(row=6, column=0, columnspan=2, pady=10)
+        tk.Label(form_frame, text="City", bg="#f4f4f9", font=("Arial", 12)).grid(row=3, column=0, padx=10, pady=10, sticky="w")
+        city_combobox = ttk.Combobox(form_frame, values=get_districts(), state="readonly", font=("Arial", 12))
+        city_combobox.grid(row=3, column=1, padx=10, pady=10, sticky="w")
 
-    def validate_doner_data(self, name, age, bloodgroup, city, number):
+        tk.Label(form_frame, text="Number", bg="#f4f4f9", font=("Arial", 12)).grid(row=4, column=0, padx=10, pady=10, sticky="w")
+        number_entry = tk.Entry(form_frame, font=("Arial", 12))
+        number_entry.grid(row=4, column=1, padx=10, pady=10, sticky="w")
+
+        # Buttons
+        button_frame = tk.Frame(doner_window, bg="#f4f4f9")
+        button_frame.grid(row=2, column=0, columnspan=2, pady=20)
+
+        add_button = tk.Button(button_frame, text="Add Donor", command=lambda: self.validate_doner_data(
+            name_entry.get(), age_entry.get(), blood_group_combobox.get(), city_combobox.get(), number_entry.get(),doner_window
+        ), bg="#27ae60", fg="white", font=("Arial", 12), padx=20, pady=10)
+        add_button.grid(row=0, column=1, padx=10)
+
+        back_button = tk.Button(button_frame, text="Close", command=lambda: self.close_doner_window(doner_window),bg="#c0392b",fg="white", font=("Arial", 12), padx=20, pady=10)
+        back_button.grid(row=0, column=0, padx=10)
+
+
+
+    def close_doner_window(self, window):
+        window.destroy()
+    def validate_doner_data(self, name, age, bloodgroup, city, number,doner_window):
         if not name or not age or not bloodgroup or not city or not number:
             messagebox.showerror("Error", "All fields are required.")
             return
@@ -48,6 +70,7 @@ class Doner:
             return
 
         self.add_doner_to_db(name, age, bloodgroup, city, number)
+        self.close_doner_window(doner_window)
 
     def validate_number(self, number):
         valid_starts = ["017", "013", "018", "015", "019", "016"]
@@ -60,7 +83,7 @@ class Doner:
             cursor.execute("INSERT INTO Doner (Name, Age, BloodGroup, City, Number) VALUES (%s, %s, %s, %s, %s)", (name, age, bloodgroup, city, number))
             db.commit()
             messagebox.showinfo("Success", "Doner added successfully")
-            close_current_tab(notebook)
+
         except mysql.connector.Error as err:
             messagebox.showerror("Error", f"Error: {err}")
         db.close()
@@ -112,29 +135,42 @@ class Doner:
 
 class Donation:
     def add_donation(self, notebook):
-        donation_frame = tk.Frame(notebook, width=800, height=600)
-        set_background(donation_frame, "BG.jpg")
-        notebook.add(donation_frame, text="Add Donation")
+        donation_window = tk.Toplevel()
+        donation_window.title("Add Donation")
+        donation_window.geometry("400x400")
 
-        tk.Label(donation_frame, text="Doner ID").grid(row=0, column=0, padx=10, pady=10)
-        doner_id_entry = tk.Entry(donation_frame)
-        doner_id_entry.grid(row=0, column=1, padx=10, pady=10)
+        header = tk.Label(donation_window, text="Add Donation", bg="#2c3e50", fg="white", font=("Arial", 18, "bold"), padx=20, pady=10)
+        header.grid(row=0, column=0, columnspan=2, sticky="we")
 
-        tk.Label(donation_frame, text="Date").grid(row=1, column=0, padx=10, pady=10)
-        date_entry = DateEntry(donation_frame, width=12, background='darkblue',
-                               foreground='white', borderwidth=2)
+        form_frame = tk.Frame(donation_window, bg="#f4f4f9")
+        form_frame.grid(row=1, column=0, columnspan=2, padx=20, pady=20)
+
+        tk.Label(form_frame, text="Donor ID", bg="#f4f4f9", font=("Arial", 12)).grid(row=0, column=0, padx=10, pady=10, sticky="w")
+        doner_id_entry = tk.Entry(form_frame, font=("Arial", 12))
+        doner_id_entry.grid(row=0, column=1, padx=10, pady=10, sticky="w")
+
+        tk.Label(form_frame, text="Date", bg="#f4f4f9", font=("Arial", 12)).grid(row=1, column=0, padx=10, pady=10, sticky="w")
+        date_entry = DateEntry(form_frame, width=12, background='darkblue', foreground='white', borderwidth=2)
         date_entry.grid(row=1, column=1, padx=10, pady=10)
 
-        tk.Label(donation_frame, text="Unit").grid(row=2, column=0, padx=10, pady=10)
-        unit_entry = tk.Entry(donation_frame)
-        unit_entry.grid(row=2, column=1, padx=10, pady=10)
+        tk.Label(form_frame, text="Unit", bg="#f4f4f9", font=("Arial", 12)).grid(row=2, column=0, padx=10, pady=10, sticky="w")
+        unit_entry = tk.Entry(form_frame, font=("Arial", 12))
+        unit_entry.grid(row=2, column=1, padx=10, pady=10, sticky="w")
 
-        tk.Button(donation_frame, text="Add Donation", command=lambda: self.add_donation_to_db(
-            doner_id_entry.get(), date_entry.get(), unit_entry.get())
-                  ).grid(row=3, column=1,  pady=10)
-        tk.Button(donation_frame, text="Back", width=10, command=lambda: go_back(notebook)).grid(row=4, column=0, pady=10)
+        button_frame = tk.Frame(donation_window, bg="#f4f4f9")
+        button_frame.grid(row=2, column=0, columnspan=2, pady=20)
 
-    def add_donation_to_db(self, doner_id, date, unit):
+        add_button = tk.Button(button_frame, text="Add Donation", command=lambda: self.add_donation_to_db(
+            doner_id_entry.get(), date_entry.get(), unit_entry.get(), donation_window
+        ), bg="#27ae60", fg="white", font=("Arial", 12), padx=20, pady=10)
+        add_button.grid(row=0, column=1, padx=10)
+
+        back_button = tk.Button(button_frame, text="Close", command=lambda: self.close_donation_window(donation_window), bg="#c0392b", fg="white", font=("Arial", 12), padx=20, pady=10)
+        back_button.grid(row=0, column=0, padx=10)
+
+    def close_donation_window(self, window):
+        window.destroy()
+    def add_donation_to_db(self, doner_id, date, unit,donation_window):
         db = Database.connect_to_database()
         cursor = db.cursor()
 
@@ -163,7 +199,8 @@ class Donation:
 
             db.commit()
             messagebox.showinfo("Success", "Donation added successfully")
-            close_current_tab(notebook)
+            self.close_donation_window(donation_window)
+
 
         except ValueError as ve:
             messagebox.showerror("Error", str(ve))
@@ -237,19 +274,213 @@ class BloodStock:
         for row in rows:
             tree.insert("", tk.END, values=row)
 
-
+    def close_show_window(self, window):
+        window.destroy()
     def show_requests(self):
-        pass
+        db = Database.connect_to_database()
+        cursor = db.cursor()
+        cursor.execute("SELECT * FROM request_blood")
+        rows = cursor.fetchall()
+        db.close()
+
+        show_requests_window = tk.Tk()
+        show_requests_window.title("Blood Requests")
+
+        show_requests_window.geometry("800x500")
+
+        frame = tk.Frame(show_requests_window)
+        frame.pack(padx=10, pady=10, fill='both', expand=True)
+
+        columns = ["Id", "Name", "Blood Group", "Unit", "Reason", "City", "Number", "Date", "Status"]
+
+        tree = ttk.Treeview(frame, columns=columns, show='headings', height=8)
+
+        for col in columns:
+            tree.heading(col, text=col)
+            tree.column(col, width=70, anchor="center")
+
+        tree.pack(pady=10, fill='both', expand=True)
+
+        for row in rows:
+            tree.insert('', tk.END, values=row)
+
+        action_label = tk.Label(frame, text="Select Action")
+        action_label.pack(padx=5, pady=5)
+
+        action_combobox = ttk.Combobox(frame, values=["Accept", "Reject"])
+        action_combobox.pack(padx=5, pady=5)
+
+        submit_button = tk.Button(frame, text="Submit", command=lambda: self.handle_request(show_requests_window,tree,action_combobox.get()))
+        submit_button.pack(padx=5, pady=10)
+
+    def handle_request(self,window,tree, action):
+        try:
+            selected_item = tree.selection()[0]
+            request_id = tree.item(selected_item)['values'][0]
+
+            if action not in ["Accept", "Reject"]:
+                messagebox.showerror("Error", "Please select an action (Accept or Reject).")
+                return
+
+            db = Database.connect_to_database()
+            cursor = db.cursor()
+
+            cursor.execute("SELECT BloodGroup, Unit FROM request_blood WHERE Id = %s", (request_id,))
+            request_details = cursor.fetchone()
+            blood_group, requested_units = request_details
+
+            if action == "Accept":
+                cursor.execute("SELECT Unit FROM BloodStock WHERE BloodGroup = %s", (blood_group,))
+                stock_units = cursor.fetchone()[0]
+
+                if stock_units >= requested_units:
+                    new_stock_units = stock_units - requested_units
+                    cursor.execute("UPDATE BloodStock SET Unit = %s WHERE BloodGroup = %s", (new_stock_units, blood_group))
+
+                    cursor.execute("UPDATE request_blood SET Status = 'Accepted' WHERE Id = %s", (request_id,))
+                    db.commit()
+                    messagebox.showinfo("Success", "Request accepted and blood stock updated.")
+                    self.close_show_window(window)
+                else:
+                    messagebox.showerror("Error", "Insufficient blood units in stock.")
+
+            elif action == "Reject":
+                cursor.execute("UPDATE request_blood SET Status = 'Rejected' WHERE Id = %s", (request_id,))
+                db.commit()
+                messagebox.showinfo("Request Rejected", "The request has been rejected.")
+                self.close_show_window(window)
+
+            db.close()
+        except IndexError:
+            messagebox.showerror("Error", "Please select a request to process.")
+        except Exception as e:
+            messagebox.showerror("Error", f"An error occurred: {e}")
+
 
 class RequestBlood:
     def request_blood(self, notebook):
-        pass
+        request_window = tk.Toplevel()
+        request_window.title("Request Blood")
+        request_window.geometry("400x500")
 
-    def add_blood_request(self, name, bloodgroup, unit, reason, city, number, date):
-        pass
+        header = tk.Label(request_window, text="Request Blood", bg="#2c3e50", fg="white", font=("Arial", 18, "bold"), padx=20, pady=10)
+        header.grid(row=0, column=0, columnspan=2, sticky="we")
+
+        form_frame = tk.Frame(request_window, bg="#f4f4f9")
+        form_frame.grid(row=1, column=0, columnspan=2, padx=20, pady=20)
+
+        tk.Label(form_frame, text="Name", bg="#f4f4f9", font=("Arial", 12)).grid(row=0, column=0, padx=10, pady=10, sticky="w")
+        name_entry = tk.Entry(form_frame, font=("Arial", 12))
+        name_entry.grid(row=0, column=1, padx=10, pady=10, sticky="w")
+
+        tk.Label(form_frame, text="Blood Group", bg="#f4f4f9", font=("Arial", 12)).grid(row=1, column=0, padx=10, pady=10, sticky="w")
+        blood_group_combobox = ttk.Combobox(form_frame, values=["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"],
+                                            state="readonly", font=("Arial", 12))
+        blood_group_combobox.grid(row=1, column=1, padx=10, pady=10)
+
+        tk.Label(form_frame, text="Unit", bg="#f4f4f9", font=("Arial", 12)).grid(row=2, column=0, padx=10, pady=10, sticky="w")
+        unit_entry = tk.Entry(form_frame, font=("Arial", 12))
+        unit_entry.grid(row=2, column=1, padx=10, pady=10, sticky="w")
+
+        tk.Label(form_frame, text="Reason", bg="#f4f4f9", font=("Arial", 12)).grid(row=3, column=0, padx=10, pady=10, sticky="w")
+        reason_combobox = ttk.Combobox(form_frame, values=["Accident", "Surgery", "Pregnancy", "Chronic illness", "Others"], font=("Arial", 12))
+        reason_combobox.grid(row=3, column=1, padx=10, pady=10)
+
+        tk.Label(form_frame, text="City", bg="#f4f4f9", font=("Arial", 12)).grid(row=4, column=0, padx=10, pady=10, sticky="w")
+        city_combobox = ttk.Combobox(form_frame, values=get_districts(), state="readonly", font=("Arial", 12))
+        city_combobox.grid(row=4, column=1, padx=10, pady=10)
+
+        tk.Label(form_frame, text="Number", bg="#f4f4f9", font=("Arial", 12)).grid(row=5, column=0, padx=10, pady=10, sticky="w")
+        number_entry = tk.Entry(form_frame, font=("Arial", 12))
+        number_entry.grid(row=5, column=1, padx=10, pady=10, sticky="w")
+
+        tk.Label(form_frame, text="Date", bg="#f4f4f9", font=("Arial", 12)).grid(row=6, column=0, padx=10, pady=10, sticky="w")
+        date_entry = DateEntry(form_frame, width=12, background='darkblue', foreground='white', borderwidth=2)
+        date_entry.grid(row=6, column=1, padx=10, pady=10)
+
+        button_frame = tk.Frame(request_window, bg="#f4f4f9")
+        button_frame.grid(row=2, column=0, columnspan=2, pady=20)
+
+        submit_button = tk.Button(button_frame, text="Submit Request", command=lambda: self.add_blood_request(
+            name_entry.get(), blood_group_combobox.get(), unit_entry.get(), reason_combobox.get(),
+            city_combobox.get(), number_entry.get(), date_entry.get_date(), request_window
+        ), bg="#27ae60", fg="white", font=("Arial", 12), padx=20, pady=10)
+        submit_button.grid(row=0, column=1, padx=10)
+
+        close_button = tk.Button(button_frame, text="Close", command=lambda: self.close_request_window(request_window),
+                                 bg="#c0392b", fg="white", font=("Arial", 12), padx=20, pady=10)
+        close_button.grid(row=0, column=0, padx=10)
+
+    def close_request_window(self, window):
+        window.destroy()
+
+    def add_blood_request(self, name, bloodgroup, unit, reason, city, number, date, request_window):
+        try:
+            unit = int(unit)
+        except ValueError:
+            messagebox.showerror("Invalid Input", "Please enter a valid number for Unit")
+            return
+
+        db = Database.connect_to_database()
+        cursor = db.cursor()
+
+        cursor.execute("SELECT Unit FROM BloodStock WHERE BloodGroup = %s", (bloodgroup,))
+        result = cursor.fetchone()
+
+        if result and result[0] >= unit:
+            cursor.execute("""INSERT INTO request_blood (Name, BloodGroup, Unit, Reason, City, Number, Date, Status) 
+                              VALUES (%s, %s, %s, %s, %s, %s, %s, 'Processing')""",
+                           (name, bloodgroup, unit, reason, city, number, date))
+            db.commit()
+            messagebox.showinfo("Success", "Blood request added. Status: Processing")
+        else:
+            cursor.execute("""SELECT Name, City, BloodGroup, Unit, Number FROM Doner WHERE BloodGroup = %s""", (bloodgroup,))
+            donor_data = cursor.fetchall()
+
+            if donor_data:
+                nearest_donor = donor_data[0]
+                messagebox.showinfo("Blood Not Available", f"Nearest Donor: {nearest_donor[0]}, {nearest_donor[1]}, {nearest_donor[2]}, {nearest_donor[3]} units available.")
+            else:
+                messagebox.showinfo("Blood Not Available", "No nearest donor found.")
+
+        request_window.destroy()
 
     def show_status(self):
-        pass
+        db = Database.connect_to_database()
+        cursor = db.cursor()
+        cursor.execute("SELECT Name, BloodGroup, Unit, Reason, City, Date, Status FROM request_blood")
+        rows = cursor.fetchall()
+        status_window = tk.Toplevel()
+        status_window.title("Show Status")
+
+        frame = tk.Frame(status_window)
+        frame.pack(padx=10, pady=10)
+
+        columns = ("Name", "BloodGroup", "Unit", "Reason", "City", "Date", "Status")
+        tree = ttk.Treeview(frame, columns=columns, show="headings")
+
+        tree.heading("Name", text="Name")
+        tree.heading("BloodGroup", text="Blood Group")
+        tree.heading("Unit", text="Unit")
+        tree.heading("Reason", text="Reason")
+        tree.heading("City", text="City")
+        tree.heading("Date", text="Date")
+        tree.heading("Status", text="Status")
+
+        tree.column("Name", width=150, anchor="center")
+        tree.column("BloodGroup", width=150, anchor="center")
+        tree.column("Unit", width=100, anchor="center")
+        tree.column("Reason", width=100, anchor="center")
+        tree.column("City", width=100, anchor="center")
+        tree.column("Date", width=100, anchor="center")
+        tree.column("Status", width=100, anchor="center")
+        tree.pack()
+
+        for row in rows:
+            tree.insert("", tk.END, values=row)
+
+
+
 
 def set_background(frame, image_path):
     bg_image = Image.open(image_path)
@@ -366,6 +597,9 @@ def save_account(username, password, role, notebook):
         if not validate_password(password):
             messagebox.showerror("Error", "Password must be at least 4 characters long.")
             return
+        if not validate_username(username):
+            messagebox.showerror("Error", "Username must be at least 4 characters long.")
+            return
 
         db = Database.connect_to_database()
         cursor = db.cursor()
@@ -394,6 +628,12 @@ def save_account(username, password, role, notebook):
 
 def validate_password(password):
     return len(password) >= 4
+
+def validate_username(username):
+    pattern = r'^[a-z][a-z0-9]{3,}$'
+
+    if re.match(pattern, username):
+        return True
 
 def admin_panel(root, notebook):
     admin_frame = tk.Frame(notebook, width=800, height=600)
@@ -446,7 +686,8 @@ def user_panel(root, notebook):
 
     tk.Button(user_frame, text="Request Blood", command=lambda: RequestBlood().request_blood(notebook)).grid(row=0, column=0, padx=10, pady=10, sticky='w')
     tk.Button(user_frame, text="Show Blood Stock", command=BloodStock().show_blood_stock).grid(row=1, column=0, padx=10, pady=10, sticky='w')
-    tk.Button(user_frame, text="Show Status", command=RequestBlood().show_status).grid(row=2, column=0, padx=10, pady=10, sticky='w')
+    tk.Button(user_frame, text="Show Status", command=RequestBlood().show_status).grid(row=2, column=0, padx=10,
+                                                                                        pady=10, sticky='w')
 
     tk.Button(user_frame, text="Log Out", command=lambda: logout(root, notebook)).grid(row=3, column=0, padx=10, pady=10, sticky='w')
 
@@ -477,7 +718,7 @@ def main_menu(root, notebook):
 
 def get_districts():
     return [
-        "Bagerhat", "Bandarban", "Bhola", "Bogura", "Brahmanbaria",
+        "Bagerhat", "Bandarban","Barisal", "Bhola", "Bogura", "Brahmanbaria",
         "Chapai Nawabganj", "Chandpur", "Chittagong", "Chuadanga", "Comilla",
         "Cox's Bazar", "Dhaka", "Dinajpur", "Faridpur", "Feni",
         "Gaibandha", "Gazipur", "Gopalganj", "Habiganj", "Jamalpur",
