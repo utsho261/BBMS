@@ -40,7 +40,8 @@ class Doner:
         city_combobox = ttk.Combobox(form_frame, values=get_districts(), state="readonly", font=("Arial", 12))
         city_combobox.grid(row=3, column=1, padx=10, pady=10, sticky="w")
 
-        tk.Label(form_frame, text="Number", bg="#f4f4f9", font=("Arial", 12)).grid(row=4, column=0, padx=10, pady=10, sticky="w")
+        tk.Label(form_frame, text="Contact Number", bg="#f4f4f9", font=("Arial", 12)).grid(row=4, column=0, padx=10,
+                                                                                           pady=10, sticky="w")
         number_entry = tk.Entry(form_frame, font=("Arial", 12))
         number_entry.grid(row=4, column=1, padx=10, pady=10, sticky="w")
 
@@ -66,7 +67,7 @@ class Doner:
             return
 
         if not self.validate_number(number):
-            messagebox.showerror("Error", "Invalid number. Must start with 017, 013, 018, 015, 019, or 016 and be 11 digits long.")
+            messagebox.showerror("Error", "Please enter a valid Bangladeshi contact number.")
             return
 
         self.add_doner_to_db(name, age, bloodgroup, city, number)
@@ -105,13 +106,14 @@ class Doner:
         blood_group_filter_combobox.bind("<<ComboboxSelected>>", lambda event: self.filter_doners(blood_group_filter_combobox.get(), city_filter_combobox.get(), show_doner_window))
         city_filter_combobox.bind("<<ComboboxSelected>>", lambda event: self.filter_doners(blood_group_filter_combobox.get(), city_filter_combobox.get(), show_doner_window))
 
-        self.doner_table = ttk.Treeview(show_doner_window, columns=("ID", "Name", "Age", "Blood Group", "City", "Number"), show="headings")
+        self.doner_table = ttk.Treeview(show_doner_window, columns=("ID", "Name", "Age", "Blood Group", "City",
+                                                                    "Contact Number"), show="headings")
         self.doner_table.heading("ID", text="ID")
         self.doner_table.heading("Name", text="Name")
         self.doner_table.heading("Age", text="Age")
         self.doner_table.heading("Blood Group", text="Blood Group")
         self.doner_table.heading("City", text="City")
-        self.doner_table.heading("Number", text="Number")
+        self.doner_table.heading("Contact Number", text="Contact Number")
         self.doner_table.grid(row=2, column=0, columnspan=2, padx=10, pady=10)
 
         self.load_doners("All", "All", show_doner_window)
@@ -291,7 +293,7 @@ class BloodStock:
         frame = tk.Frame(show_requests_window)
         frame.pack(padx=10, pady=10, fill='both', expand=True)
 
-        columns = ["Id", "Name", "Blood Group", "Unit", "Reason", "City", "Number", "Date", "Status"]
+        columns = ["Id", "Name", "Blood Group", "Unit", "Reason", "City", "Contact Number", "Date", "Status"]
 
         tree = ttk.Treeview(frame, columns=columns, show='headings', height=8)
 
@@ -390,7 +392,8 @@ class RequestBlood:
         city_combobox = ttk.Combobox(form_frame, values=get_districts(), state="readonly", font=("Arial", 12))
         city_combobox.grid(row=4, column=1, padx=10, pady=10)
 
-        tk.Label(form_frame, text="Number", bg="#f4f4f9", font=("Arial", 12)).grid(row=5, column=0, padx=10, pady=10, sticky="w")
+        tk.Label(form_frame, text="Contact Number", bg="#f4f4f9", font=("Arial", 12)).grid(row=5, column=0, padx=10,
+                                                                                    pady=10, sticky="w")
         number_entry = tk.Entry(form_frame, font=("Arial", 12))
         number_entry.grid(row=5, column=1, padx=10, pady=10, sticky="w")
 
@@ -420,6 +423,9 @@ class RequestBlood:
         except ValueError:
             messagebox.showerror("Invalid Input", "Please enter a valid number for Unit")
             return
+        if not re.match(r"^(017|013|018|016|015|019)\d{8}$", number):
+            messagebox.showerror("Invalid Input", "Please enter a valid Bangladeshi contact number")
+            return
 
         db = Database.connect_to_database()
         cursor = db.cursor()
@@ -434,16 +440,23 @@ class RequestBlood:
             db.commit()
             messagebox.showinfo("Success", "Blood request added. Status: Processing")
         else:
-            cursor.execute("""SELECT Name, City, BloodGroup, Unit, Number FROM Doner WHERE BloodGroup = %s""", (bloodgroup,))
+            # Find nearest donor
+            cursor.execute("""SELECT Name, City, BloodGroup, Number FROM Doner WHERE BloodGroup = %s""",
+                           (bloodgroup,))
             donor_data = cursor.fetchall()
 
             if donor_data:
                 nearest_donor = donor_data[0]
-                messagebox.showinfo("Blood Not Available", f"Nearest Donor: {nearest_donor[0]}, {nearest_donor[1]}, {nearest_donor[2]}, {nearest_donor[3]} units available.")
+                messagebox.showinfo("Blood Not Available", f"Nearest Donor: {nearest_donor[0]}, {nearest_donor[1]}, {nearest_donor[2]}, Contact: {nearest_donor[3]}")
             else:
-                messagebox.showinfo("Blood Not Available", "No nearest donor found.")
+                if not result or result[0] == 0:
+                    messagebox.showerror("Error", "Blood stock is empty and no nearest donor is available.")
+                else:
+                    messagebox.showinfo("Blood Not Available", "No nearest donor found.")
 
         request_window.destroy()
+
+
 
     def show_status(self):
         db = Database.connect_to_database()
