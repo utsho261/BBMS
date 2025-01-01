@@ -16,11 +16,9 @@ class Doner:
         doner_window.title("Add Donor")
         doner_window.geometry("400x400")
 
-        # Header
         header = tk.Label(doner_window, text="Add Donor", bg="#2c3e50", fg="white", font=("Arial", 18, "bold"), padx=20, pady=10)
         header.grid(row=0, column=0, columnspan=2, sticky="we")
 
-        # Donor Form
         form_frame = tk.Frame(doner_window, bg="#f4f4f9")
         form_frame.grid(row=1, column=0, columnspan=2, padx=20, pady=20)
 
@@ -172,44 +170,82 @@ class Donation:
 
     def close_donation_window(self, window):
         window.destroy()
-    def add_donation_to_db(self, doner_id, date, unit,donation_window):
+    def add_donation_to_db(self, doner_id, date, unit, donation_window):
         db = Database.connect_to_database()
         cursor = db.cursor()
 
         try:
+            # Convert unit to integer
             unit = int(unit)
 
+            # Fetch donor details
+            cursor.execute("SELECT Age, (SELECT MAX(Date) FROM Donation WHERE DonerID = %s) AS LastDonation FROM Doner WHERE Id = %s", (doner_id, doner_id))
+            donor_data = cursor.fetchone()
+
+            if not donor_data:
+                messagebox.showerror("Error", "Donor ID not found.")
+                return
+
+            age, last_donation_date = donor_data
+
+            # Validate age
+            if age < 18:
+                messagebox.showerror("Error", "Donor must be 18 years or older to donate.")
+                return
+
+            # Validate last donation date
+            if last_donation_date:
+                from datetime import datetime, timedelta
+
+                last_donation_date = datetime.strptime(str(last_donation_date), "%m/%d/%y")
+                next_eligible_date = last_donation_date + timedelta(days=90)
+                current_date = datetime.strptime(date, "%m/%d/%y")
+
+                if current_date < next_eligible_date:
+                    messagebox.showerror(
+                        "Error",
+                        f"Donor can donate again after {next_eligible_date.strftime('%m/%d/%y')}."
+                    )
+                    return
+
+            # Fetch donor's blood group
+            cursor.execute("SELECT BloodGroup FROM Doner WHERE Id = %s", (doner_id,))
+            blood_group = cursor.fetchone()
+
+            if not blood_group:
+                messagebox.showerror("Error", "Blood group not found for this donor.")
+                return
+
+            blood_group = blood_group[0]
+
+            # Insert donation record
             cursor.execute(
                 "INSERT INTO Donation (DonerID, Date, Unit) VALUES (%s, %s, %s)",
                 (doner_id, date, unit)
             )
-            cursor.execute("SELECT BloodGroup FROM Doner WHERE Id = %s", (doner_id,))
-            blood_group = cursor.fetchone()
 
-            if blood_group:
-                blood_group = blood_group[0]
+            # Update blood stock
+            cursor.execute("SELECT Unit FROM BloodStock WHERE BloodGroup = %s", (blood_group,))
+            result = cursor.fetchone()
 
-                cursor.execute("SELECT Unit FROM BloodStock WHERE BloodGroup = %s", (blood_group,))
-                result = cursor.fetchone()
-
-                if result:
-                    existing_unit = int(result[0])
-                    new_unit = existing_unit + unit
-                    cursor.execute("UPDATE BloodStock SET Unit = %s WHERE BloodGroup = %s", (new_unit, blood_group))
-                else:
-                    cursor.execute("INSERT INTO BloodStock (BloodGroup, Unit) VALUES (%s, %s)", (blood_group, unit))
+            if result:
+                existing_unit = int(result[0])
+                new_unit = existing_unit + unit
+                cursor.execute("UPDATE BloodStock SET Unit = %s WHERE BloodGroup = %s", (new_unit, blood_group))
+            else:
+                cursor.execute("INSERT INTO BloodStock (BloodGroup, Unit) VALUES (%s, %s)", (blood_group, unit))
 
             db.commit()
-            messagebox.showinfo("Success", "Donation added successfully")
+            messagebox.showinfo("Success", "Donation added successfully.")
             self.close_donation_window(donation_window)
 
-
         except ValueError as ve:
-            messagebox.showerror("Error", str(ve))
+            messagebox.showerror("Error", f"Invalid input: {ve}")
         except mysql.connector.Error as err:
             messagebox.showerror("Error", f"Database error: {err}")
         finally:
             db.close()
+
 
 
 
@@ -275,6 +311,76 @@ class BloodStock:
 
         for row in rows:
             tree.insert("", tk.END, values=row)
+
+    def update_blood_stock(self):
+        def submit_update():
+            blood_group = blood_group_var.get()
+            unit_change = unit_var.get()
+            operation = operation_var.get()  # Get the selected operation (Add or Minus)
+
+            if blood_group and unit_change.isdigit():
+                try:
+                    cursor = db.cursor()
+                    # Fetch the current stock
+                    cursor.execute("SELECT Unit FROM BloodStock WHERE BloodGroup = %s", (blood_group,))
+                    current_stock = cursor.fetchone()
+
+                    if current_stock is None:
+                        tk.messagebox.showerror("Error", "Blood group not found!")
+                        return
+
+                    current_stock = current_stock[0]
+                    if operation == "Add":
+                        new_stock = current_stock + int(unit_change)
+                    elif operation == "Minus":
+                        new_stock = current_stock - int(unit_change)
+
+                    # Check if new stock is non-negative
+                    if new_stock < 0:
+                        tk.messagebox.showerror("Error", "Resulting stock cannot be negative!")
+                        return
+
+                    # Update the stock
+                    cursor.execute(
+                        "UPDATE BloodStock SET Unit = %s WHERE BloodGroup = %s",
+                        (new_stock, blood_group)
+                    )
+                    db.commit()
+                    tk.messagebox.showinfo("Success", "Blood stock updated successfully!")
+                    update_window.destroy()
+                except Exception as e:
+                    tk.messagebox.showerror("Error", f"Failed to update stock: {e}")
+            else:
+                tk.messagebox.showerror("Error", "Please enter a valid number for the unit!")
+
+        db = Database.connect_to_database()
+        cursor = db.cursor()
+        cursor.execute("SELECT BloodGroup FROM BloodStock")
+        blood_groups = [row[0] for row in cursor.fetchall()]
+
+        update_window = tk.Toplevel()
+        update_window.title("Update Blood Stock")
+
+        tk.Label(update_window, text="Select Blood Group:").pack(pady=5)
+        blood_group_var = tk.StringVar()
+        blood_group_menu = ttk.Combobox(update_window, textvariable=blood_group_var, values=blood_groups, state="readonly")
+        blood_group_menu.pack(pady=5)
+
+        tk.Label(update_window, text="Operation:").pack(pady=5)
+        operation_var = tk.StringVar(value="Add")  # Default operation is Add
+        add_radio = ttk.Radiobutton(update_window, text="Add", variable=operation_var, value="Add")
+        minus_radio = ttk.Radiobutton(update_window, text="Minus", variable=operation_var, value="Minus")
+        add_radio.pack()
+        minus_radio.pack()
+
+        tk.Label(update_window, text="Enter Unit:").pack(pady=5)
+        unit_var = tk.StringVar()
+        unit_entry = ttk.Entry(update_window, textvariable=unit_var)
+        unit_entry.pack(pady=5)
+
+        submit_button = ttk.Button(update_window, text="Update", command=submit_update)
+        submit_button.pack(pady=10)
+
 
     def close_show_window(self, window):
         window.destroy()
@@ -423,6 +529,7 @@ class RequestBlood:
         except ValueError:
             messagebox.showerror("Invalid Input", "Please enter a valid number for Unit")
             return
+
         if not re.match(r"^(017|013|018|016|015|019)\d{8}$", number):
             messagebox.showerror("Invalid Input", "Please enter a valid Bangladeshi contact number")
             return
@@ -446,8 +553,17 @@ class RequestBlood:
             donor_data = cursor.fetchall()
 
             if donor_data:
-                nearest_donor = donor_data[0]
-                messagebox.showinfo("Blood Not Available", f"Nearest Donor: {nearest_donor[0]}, {nearest_donor[1]}, {nearest_donor[2]}, Contact: {nearest_donor[3]}")
+                # Function to display one donor at a time
+                def show_donor(index=0):
+                    if index < len(donor_data):
+                        donor = donor_data[index]
+                        donor_info = f"Name: {donor[0]}\nCity: {donor[1]}\nBlood Group: {donor[2]}\nContact: {donor[3]}"
+                        if messagebox.askyesno("Nearest Donor", f"{donor_info}\n\nShow next donor?"):
+                            show_donor(index + 1)
+                    else:
+                        messagebox.showinfo("No More Donors", "You have viewed all available donors.")
+
+                show_donor()
             else:
                 if not result or result[0] == 0:
                     messagebox.showerror("Error", "Blood stock is empty and no nearest donor is available.")
@@ -455,6 +571,7 @@ class RequestBlood:
                     messagebox.showinfo("Blood Not Available", "No nearest donor found.")
 
         request_window.destroy()
+
 
 
 
@@ -649,35 +766,45 @@ def validate_username(username):
         return True
 
 def admin_panel(root, notebook):
-    admin_frame = tk.Frame(notebook, width=800, height=600)
+    admin_frame = tk.Frame(notebook, bg="#f0f2f5", width=800, height=600)
     set_background(admin_frame, "BG.jpg")
-
     notebook.add(admin_frame, text="Admin Panel")
 
-    doner_button = tk.Button(admin_frame, text="Doner", command=lambda: toggle_doner_options(doner_options_frame))
-    doner_button.grid(row=1, column=0, padx=10, pady=5, sticky='w')
+    title_label = tk.Label(admin_frame, text="Admin Dashboard", font=("Helvetica", 24, "bold"), bg="#f0f2f5", fg="#333")
+    title_label.grid(row=0, column=0, columnspan=2, pady=20)
 
-    doner_options_frame = tk.Frame(admin_frame)
-    doner_options_frame.grid(row=2, column=0, padx=10, pady=5, sticky='w')
+    doner_button = ttk.Button(admin_frame, text="Doner", command=lambda: toggle_doner_options(doner_options_frame))
+    doner_button.grid(row=1, column=0, padx=20, pady=10, sticky='w')
+
+    doner_options_frame = tk.Frame(admin_frame, bg="#ffffff", relief="groove", bd=2)
+    doner_options_frame.grid(row=2, column=0, padx=20, pady=5, sticky='w')
     doner_options_frame.grid_remove()
 
-    tk.Button(doner_options_frame, text="Add Doner", command=lambda: Doner().add_doner(notebook)).grid(row=0, column=0, padx=10, pady=5)
-    tk.Button(doner_options_frame, text="Show Doners", command=Doner().show_doners).grid(row=0, column=1, padx=10, pady=5)
+    ttk.Button(doner_options_frame, text="Add Doner", command=lambda: Doner().add_doner(notebook)).grid(row=0, column=0, padx=20, pady=10)
+    ttk.Button(doner_options_frame, text="Show Doners", command=Doner().show_doners).grid(row=0, column=1, padx=20, pady=10)
 
+    donation_button = ttk.Button(admin_frame, text="Donation", command=lambda: toggle_donation_options(donation_options_frame))
+    donation_button.grid(row=3, column=0, padx=20, pady=10, sticky='w')
 
-    donation_button = tk.Button(admin_frame, text="Donation", command=lambda: toggle_donation_options(donation_options_frame))
-    donation_button.grid(row=3, column=0, padx=10, pady=5, sticky='w')
-
-    donation_options_frame = tk.Frame(admin_frame)
-    donation_options_frame.grid(row=4, column=0, padx=10, pady=5, sticky='w')
+    donation_options_frame = tk.Frame(admin_frame, bg="#ffffff", relief="groove", bd=2)
+    donation_options_frame.grid(row=4, column=0, padx=20, pady=5, sticky='w')
     donation_options_frame.grid_remove()
 
-    tk.Button(donation_options_frame, text="Add Donation", command=lambda: Donation().add_donation(notebook)).grid(row=0, column=0, padx=10, pady=5)
-    tk.Button(donation_options_frame, text="Show Donations", command=Donation().show_donations).grid(row=0, column=1, padx=10, pady=5)
+    ttk.Button(donation_options_frame, text="Add Donation", command=lambda: Donation().add_donation(notebook)).grid(row=0, column=0, padx=20, pady=10)
+    ttk.Button(donation_options_frame, text="Show Donations", command=Donation().show_donations).grid(row=0, column=1, padx=20, pady=10)
 
-    tk.Button(admin_frame, text="Show Blood Stock", command=BloodStock().show_blood_stock).grid(row=5, column=0, padx=10, pady=10, sticky='w')
-    tk.Button(admin_frame, text="Show Requests", command=BloodStock().show_requests).grid(row=6, column=0, padx=10, pady=10, sticky='w')
-    tk.Button(admin_frame, text="Log Out", command=lambda: logout(root, notebook)).grid(row=7, column=0, padx=10, pady=10, sticky='w')
+    ttk.Button(admin_frame, text="Show Blood Stock", command=BloodStock().show_blood_stock).grid(row=5, column=0, padx=20, pady=10, sticky='w')
+    ttk.Button(admin_frame, text="Update Blood Stock", command=BloodStock().update_blood_stock).grid(row=6, column=0, padx=20, pady=10, sticky='w')
+    ttk.Button(admin_frame, text="Show Requests", command=BloodStock().show_requests).grid(row=7, column=0, padx=20, pady=10, sticky='w')
+
+    logout_button = ttk.Button(admin_frame, text="Log Out", command=lambda: logout(root, notebook))
+    logout_button.grid(row=8, column=0, padx=20, pady=20, sticky='w')
+
+    style = ttk.Style()
+    style.configure('TButton', font=('Helvetica', 12), padding=10)
+    style.configure('TLabel', font=('Helvetica', 12))
+    style.map('TButton', background=[('active', '#d9534f'), ('!active', '#007bff')], foreground=[('active', '#ffffff')])
+
 
 def toggle_doner_options(frame):
     if frame.winfo_ismapped():
@@ -691,18 +818,44 @@ def toggle_donation_options(frame):
     else:
         frame.grid()
 
-def user_panel(root, notebook):
-    user_frame = tk.Frame(notebook, width=800, height=600)
-    set_background(user_frame, "BG.jpg")
 
+def user_panel(root, notebook):
+    user_frame = tk.Frame(notebook, bg="#f0f2f5", width=800, height=600)
+    set_background(user_frame, "BG.jpg")
     notebook.add(user_frame, text="User Panel")
 
-    tk.Button(user_frame, text="Request Blood", command=lambda: RequestBlood().request_blood(notebook)).grid(row=0, column=0, padx=10, pady=10, sticky='w')
-    tk.Button(user_frame, text="Show Blood Stock", command=BloodStock().show_blood_stock).grid(row=1, column=0, padx=10, pady=10, sticky='w')
-    tk.Button(user_frame, text="Show Status", command=RequestBlood().show_status).grid(row=2, column=0, padx=10,
-                                                                                        pady=10, sticky='w')
+    title_label = tk.Label(user_frame, text="User Dashboard", font=("Helvetica", 24, "bold"), bg="#f0f2f5", fg="#333")
+    title_label.grid(row=0, column=0, columnspan=2, pady=20)
 
-    tk.Button(user_frame, text="Log Out", command=lambda: logout(root, notebook)).grid(row=3, column=0, padx=10, pady=10, sticky='w')
+    request_blood_button = ttk.Button(user_frame, text="Request Blood",
+                                      command=lambda: toggle_request_options(request_options_frame))
+    request_blood_button.grid(row=1, column=0, padx=20, pady=10, sticky='w')
+
+    request_options_frame = tk.Frame(user_frame, bg="#ffffff", relief="groove", bd=2)
+    request_options_frame.grid(row=2, column=0, padx=20, pady=5, sticky='w')
+    request_options_frame.grid_remove()
+
+    ttk.Button(request_options_frame, text="Make a Request",
+               command=lambda: RequestBlood().request_blood(notebook)).grid(row=0, column=0, padx=20, pady=10)
+    ttk.Button(request_options_frame, text="View Request Status",
+               command=RequestBlood().show_status).grid(row=0, column=1, padx=20, pady=10)
+
+    ttk.Button(user_frame, text="View Blood Stock", command=BloodStock().show_blood_stock).grid(row=3, column=0, padx=20,
+                                                                                                pady=10, sticky='w')
+    logout_button = ttk.Button(user_frame, text="Log Out", command=lambda: logout(root, notebook))
+    logout_button.grid(row=4, column=0, padx=20, pady=20, sticky='w')
+
+    style = ttk.Style()
+    style.configure('TButton', font=('Helvetica', 12), padding=10)
+    style.configure('TLabel', font=('Helvetica', 12))
+    style.map('TButton', background=[('active', '#5bc0de'), ('!active', '#337ab7')], foreground=[('active', '#ffffff')])
+
+def toggle_request_options(frame):
+    if frame.winfo_viewable():
+        frame.grid_remove()
+    else:
+        frame.grid()
+
 
 def main_menu(root, notebook):
     root.title("Blood Bank Management System")
@@ -749,7 +902,7 @@ def get_districts():
 
 if __name__ == "__main__":
     root = tk.Tk()
-    root.geometry("800x500")
+    root.geometry("850x600")
 
     notebook = ttk.Notebook(root)
     notebook.pack(expand=True, fill='both')
